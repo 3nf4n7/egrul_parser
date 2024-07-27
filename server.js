@@ -23,9 +23,6 @@ app.get("/api/egrul", async (req, res) => {
   const collection = req.app.locals.collection;
   const searchQuery = {};
   if (req.query.legal) searchQuery.legal = req.query.legal;
-  if (req.query.fio) {
-    searchQuery.fio = { $regex: req.query.fio, $options: "i" };
-  }
   if (req.query.inn) searchQuery.inn = req.query.inn;
   console.log(searchQuery);
   try {
@@ -33,10 +30,29 @@ app.get("/api/egrul", async (req, res) => {
     if (persons && persons.length > 0) res.send(persons);
     else {
       persons = await parseEgrulNalog(Object.values(searchQuery).join(" "));
+
+      for (let person of persons) {
+        // Используем регулярные выражения для извлечения данных
+        const ogrnipMatch = person.description.match(/ОГРНИП:\s*(\d+)/i);
+        const ogrnMatch = person.description.match(/ОГРН:\s*(\d+)/i);
+        const innMatch = person.description.match(/ИНН:\s*(\d+)/i);
+        const kppMatch = person.description.match(/КПП:\s*(\d+)/i);
+
+        person = {
+          legal: person.title?.trim() ?? null,
+          ogrnip: ogrnipMatch ? ogrnipMatch[1] : null,
+          ogrn: ogrnMatch ? ogrnMatch[1] : null,
+          inn: innMatch ? innMatch[1] : null,
+          ogrnipStart: kppMatch ? kppMatch[1] : null,
+          filePath: person.filePath ?? null,
+        };
+
+        await collection.insertOne(person);
+      }
+
       if (persons && persons.length > 0) res.send(persons);
       else res.sendStatus(404);
     }
-    res.sendStatus(404);
   } catch (err) {
     console.log(err);
     res.sendStatus(500);
