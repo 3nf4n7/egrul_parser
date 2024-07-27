@@ -31,7 +31,11 @@ app.get("/api/egrul", async (req, res) => {
   try {
     let persons = await collection.find(searchQuery).toArray();
     if (persons && persons.length > 0) res.send(persons);
-
+    else {
+      persons = await parseEgrulNalog(Object.values(searchQuery).join(" "));
+      if (persons && persons.length > 0) res.send(persons);
+      else res.sendStatus(404);
+    }
     res.sendStatus(404);
   } catch (err) {
     console.log(err);
