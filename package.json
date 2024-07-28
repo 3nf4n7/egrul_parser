@@ -10,7 +10,9 @@
   "description": "",
   "dependencies": {
     "express": "^4.19.2",
+    "fs": "^0.0.1-security",
     "mongodb": "^6.8.0",
+    "mongoose": "^8.5.1",
     "playwright": "^1.45.3"
   }
 }

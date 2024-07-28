@@ -4,8 +4,157 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    hello
+    <main>
+      <div class="search-wrap">
+        <label for="searchInput">Поисковой запрос:</label>
+        <div class="search-input-wrap">
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="Поиск ЕГРЮЛ по юр. лицу, ФИО, ИНН"
+          />
+          <button id="clearButton">&times;</button>
+        </div>
+      </div>
+      <div class="pagination">
+        <button id="prevBtn">Previous</button>
+        <span id="pageInfo"></span>
+        <button id="nextBtn">Next</button>
+      </div>
+      <div class="results">
+        <div class="empty">Здесь будет результат поиска</div>
+      </div>
+    </main>
+    <div id="modal" class="modal">
+      <div class="modal-content">
+        <div class="loader"></div>
+        <p>Собираем данные. Это займет некоторое время</p>
+      </div>
+    </div>
+    <script>
+      let empty = document.querySelector(".empty");
+      let searchInput = document.querySelector("#searchInput");
+      const modal = document.getElementById("modal");
+      const resultsContainer = document.querySelector(".results");
+      const prevBtn = document.getElementById("prevBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const pageInfo = document.getElementById("pageInfo");
+
+      let isEnterKeyPressed = false;
+      let lastQuery = "";
+      let personsData = [];
+
+      async function sendSearchQuery() {
+        const query = searchInput.value;
+
+        if (query && query !== lastQuery) {
+          console.log(query);
+          modal.style.display = "block";
+          let res = await fetch(`api/egrul?query=${query}`);
+          personsData = await res.json();
+          console.log(personsData);
+          lastQuery = query;
+          while (resultsContainer.firstChild) {
+            resultsContainer.removeChild(resultsContainer.firstChild);
+          }
+          setTimeout(() => (modal.style.display = "none"), 1000);
+
+          if (personsData.length) {
+            for (let i = 0; i < personsData.length; i++) {
+              let person = personsData[i];
+              // Создание элемента div с классом res-row
+              const resRow = document.createElement("div");
+              resRow.className = "res-row";
+
+              // Создание и добавление номера строки
+              const resRowNum = document.createElement("div");
+              resRowNum.className = "res-rownum";
+              resRowNum.textContent = `${i + 1}.`;
+              resRow.appendChild(resRowNum);
+
+              // Создание и добавление заголовка
+              const resCaption = document.createElement("div");
+              resCaption.className = "res-caption";
+              const link = document.createElement("a");
+              link.href = `api/egrul/download?id=${person._id}`;
+              link.title = "Получить выписку";
+              link.innerHTML = person.legal;
+              resCaption.appendChild(link);
+              resRow.appendChild(resCaption);
+
+              // Создание и добавление строки с данными
+              const resLine = document.createElement("div");
+              resLine.className = "res-line";
+
+              const resText = document.createElement("div");
+              resText.className = "res-text";
+              let info = [];
+              if (person.ogrnip) info.push(`ОГРНИП:&nbsp;${person.ogrnip}`);
+              if (person.ogrnipStart)
+                info.push(`Дата присвоения ОГРНИП:&nbsp;${person.ogrnipStart}`);
+              if (person.ogrn) info.push(`ОГРН:&nbsp;${person.ogrn}`);
+              if (person.ogrnStart)
+                info.push(`Дата присвоения ОГРН:&nbsp;${person.ogrnStart}`);
+              if (person.inn) info.push(`ИНН:&nbsp;${person.inn}`);
+              if (person.kpp) info.push(`КПП:&nbsp;${person.kpp}`);
+
+              resText.innerHTML = info.join(", ");
+              resLine.appendChild(resText);
+              resCaption.appendChild(resLine);
+
+              const buttonLink = document.createElement("a");
+              buttonLink.href = `api/egrul/download?id=${person._id}`;
+
+              const button = document.createElement("button");
+              button.className = "download-button";
+              button.textContent = "Получить выписку";
+              buttonLink.appendChild(button);
+              resRow.appendChild(buttonLink);
+
+              // Добавление всего созданного элемента в контейнер
+              resultsContainer.appendChild(resRow);
+              empty.style.display = "none";
+            }
+          } else {
+            const resRow = document.createElement("div");
+            resRow.className = "res-row";
+
+            const pRes = document.createElement("p");
+            p.innerHTML = "Ничего не найдено";
+          }
+        }
+      }
+
+      searchInput.addEventListener("blur", () => {
+        if (!isEnterKeyPressed) {
+          sendSearchQuery();
+        }
+        isEnterKeyPressed = false;
+      });
+
+      searchInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          isEnterKeyPressed = true;
+          sendSearchQuery();
+          searchInput.blur();
+        }
+
+        clearButton.addEventListener("click", () => {
+          searchInput.value = "";
+          clearButton.style.display = "none";
+        });
+
+        searchInput.addEventListener("input", () => {
+          if (searchInput.value) {
+            clearButton.style.display = "block";
+          } else {
+            clearButton.style.display = "none";
+          }
+        });
+      });
+    </script>
   </body>
 </html>

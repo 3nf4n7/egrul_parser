@@ -25,7 +25,11 @@ const parseEgrulNalog = async (query) => {
   await page.fill("input[name='query']", query);
   await page.click('button[type="submit"]');
 
-  await page.waitForSelector(".res-row");
+  try {
+    await page.waitForSelector(".res-row");
+  } catch {
+    return [];
+  }
 
   const results = [];
 
@@ -36,7 +40,7 @@ const parseEgrulNalog = async (query) => {
     const description = await res.$eval(".res-text", (el) => el.innerText);
 
     // Клик по ссылке для скачивания
-    const link = await res.$("a.op-excerpt"); // Замените селектор на актуальный
+    const link = await res.$("a.op-excerpt");
     if (link) {
       // Запоминаем описание и заголовок до начала загрузки
       const title = await link.textContent();
@@ -49,7 +53,7 @@ const parseEgrulNalog = async (query) => {
     }
   }
 
-  // Ожидание завершения всех загрузок (можно добавить дополнительную логику ожидания, если нужно)
+  // Ожидание завершения всех загрузок
   await page.waitForTimeout(5000);
 
   console.log(results);

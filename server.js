@@ -1,57 +1,104 @@
 const express = require("express");
-const MongoClient = require("mongodb").MongoClient;
+const mongoose = require("mongoose");
 const parseEgrulNalog = require("./parseEgrulNalog");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 app.use(express.static("public"));
 app.use(express.json());
 
-const mongoClient = new MongoClient("mongodb://127.0.0.1:27017/");
+const mongoURI = "mongodb://127.0.0.1:27017/egrul";
 
-(async () => {
-  try {
-    await mongoClient.connect();
-    app.locals.collection = mongoClient.db("egrul").collection("person");
-    app.listen(3000);
-    console.log("Сервер ожидает подключения...");
-  } catch (err) {
-    return console.log(err);
-  }
-})();
+mongoose.connect(mongoURI);
+
+const personSchema = new mongoose.Schema({
+  legal: String,
+  ogrnip: String,
+  ogrn: String,
+  inn: String,
+  kpp: String,
+  ogrnipStart: String,
+  ogrnStart: String,
+  filePath: String,
+});
+
+const Person = mongoose.model("Person", personSchema);
+
+app.listen(3000, () => {
+  console.log("Сервер запущен на порте 3000");
+});
 
 app.get("/api/egrul", async (req, res) => {
-  const collection = req.app.locals.collection;
-  const searchQuery = {};
-  if (req.query.legal) searchQuery.legal = req.query.legal;
-  if (req.query.inn) searchQuery.inn = req.query.inn;
-  console.log(searchQuery);
   try {
-    let persons = await collection.find(searchQuery).toArray();
-    if (persons && persons.length > 0) res.send(persons);
-    else {
-      persons = await parseEgrulNalog(Object.values(searchQuery).join(" "));
+    const regex = new RegExp(req.query.query, "i");
 
-      for (let person of persons) {
-        // Используем регулярные выражения для извлечения данных
+    const pipeline = [
+      {
+        $addFields: {
+          combinedFields: {
+            $concat: [
+              { $ifNull: ["$legal", ""] },
+              " ",
+              { $ifNull: ["$ogrnip", ""] },
+              " ",
+              { $ifNull: ["$ogrn", ""] },
+              " ",
+              { $ifNull: ["$inn", ""] },
+            ],
+          },
+        },
+      },
+      {
+        $match: {
+          combinedFields: { $regex: regex },
+        },
+      },
+    ];
+
+    const persons = await Person.aggregate(pipeline);
+
+    if (persons && persons.length > 0) {
+      res.send(persons);
+    } else {
+      const parsedPersons = await parseEgrulNalog(req.query.query);
+      if (!parsedPersons.lenght) return [];
+
+      const newPersons = parsedPersons.map((person) => {
         const ogrnipMatch = person.description.match(/ОГРНИП:\s*(\d+)/i);
         const ogrnMatch = person.description.match(/ОГРН:\s*(\d+)/i);
         const innMatch = person.description.match(/ИНН:\s*(\d+)/i);
         const kppMatch = person.description.match(/КПП:\s*(\d+)/i);
+        const dateOgrnMatch = person.description.match(
+          /Дата присвоения ОГРН:\s*([\d.]+)/i
+        );
+        const dateOgrnipMatch = person.description.match(
+          /Дата присвоения ОГРНИП:\s*([\d.]+)/i
+        );
+        const endDateMatch = person.description.match(
+          /Дата прекращения деятельности:\s*([\d.]+)/i
+        );
 
-        person = {
+        return {
           legal: person.title?.trim() ?? null,
           ogrnip: ogrnipMatch ? ogrnipMatch[1] : null,
           ogrn: ogrnMatch ? ogrnMatch[1] : null,
           inn: innMatch ? innMatch[1] : null,
-          ogrnipStart: kppMatch ? kppMatch[1] : null,
+          kpp: kppMatch ? kppMatch[1] : null,
+          ogrnStart: dateOgrnMatch ? dateOgrnMatch[1] : null,
+          ogrnipStart: dateOgrnipMatch ? dateOgrnipMatch[1] : null,
+          endDate: endDateMatch ? endDateMatch[1] : null,
           filePath: person.filePath ?? null,
         };
+      });
 
-        await collection.insertOne(person);
+      await Person.insertMany(newPersons);
+
+      if (newPersons && newPersons.length > 0) {
+        res.send(newPersons);
+      } else {
+        res.sendStatus(404);
       }
-
-      if (persons && persons.length > 0) res.send(persons);
-      else res.sendStatus(404);
     }
   } catch (err) {
     console.log(err);
@@ -59,8 +106,21 @@ app.get("/api/egrul", async (req, res) => {
   }
 });
 
+app.get("/api/egrul/download", async (req, res) => {
+  if (req.query.id) {
+    let person = await Person.findOne({ _id: req.query.id });
+    console.log(person);
+    res.download(person.filePath, (err) => {
+      if (err) {
+        console.log(err);
+        res.status(404).send("File not found");
+      }
+    });
+  }
+});
+
 process.on("SIGINT", async () => {
-  await mongoClient.close();
+  await mongoose.connection.close();
   console.log("Приложение завершило работу");
   process.exit();
 });
