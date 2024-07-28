@@ -26,37 +26,62 @@ const parseEgrulNalog = async (query) => {
   await page.click('button[type="submit"]');
 
   try {
-    await page.waitForSelector(".res-row");
+    await page.waitForSelector(".res-row", { timeout: 10000 });
   } catch {
     return [];
   }
 
   const results = [];
 
-  const searchRes = await page.$$(".res-row");
+  let isSinglePage = false;
 
-  for (const res of searchRes) {
-    // Получение описания
-    const description = await res.$eval(".res-text", (el) => el.innerText);
+  const selector = ".page-nav li:nth-last-child(2) a";
+  let dataPageValue = 1;
+  try {
+    await page.waitForSelector(selector, { timeout: 5000 });
+    dataPageValue = await page.$eval(selector, (el) =>
+      el.getAttribute("data-page")
+    );
+  } catch {
+    isSinglePage = true;
+  }
 
-    // Клик по ссылке для скачивания
-    const link = await res.$("a.op-excerpt");
-    if (link) {
-      // Запоминаем описание и заголовок до начала загрузки
-      const title = await link.textContent();
-      results.push({ title, description });
+  for (let i = 0; i < dataPageValue; i++) {
+    const searchRes = await page.$$(".res-row");
+    for (const res of searchRes) {
+      // Получение описания
+      const description = await res.$eval(".res-text", (el) => el.innerText);
 
-      await link.click();
+      // Клик по ссылке для скачивания
+      const link = await res.$("a.op-excerpt");
+      if (link) {
+        // Запоминаем описание и заголовок до начала загрузки
+        const title = await link.textContent();
+        results.push({ title, description });
 
-      // Добавляем небольшую задержку между кликами, чтобы предотвратить перегрузку событий загрузки
-      await page.waitForTimeout(1000);
+        await link.click();
+
+        // Добавляем небольшую задержку между кликами, чтобы предотвратить перегрузку событий загрузки
+        await page.waitForTimeout(1000);
+      }
+    }
+
+    if (isSinglePage) break;
+
+    await page.click(".lnk-page.lnk-page-next");
+
+    try {
+      await page.waitForSelector(".blockUI.blockMsg.blockPage", {
+        state: "hidden",
+        timeout: 5000,
+      });
+    } catch {
+      return [];
     }
   }
 
   // Ожидание завершения всех загрузок
   await page.waitForTimeout(5000);
-
-  console.log(results);
 
   await browser.close();
   return results;

@@ -31,7 +31,11 @@
     <div id="modal" class="modal">
       <div class="modal-content">
         <div class="loader"></div>
-        <p>Собираем данные. Это займет некоторое время</p>
+        <p>
+          Собираем данные. Это займет некоторое время, если совпаданий не будет
+          найдено в наших базах данных, <br />
+          так как происходит обращение к ресурсу egrul.nalog.ru
+        </p>
       </div>
     </div>
     <script>
@@ -123,7 +127,7 @@
             resRow.className = "res-row";
 
             const pRes = document.createElement("p");
-            p.innerHTML = "Ничего не найдено";
+            pRes.innerHTML = "Ничего не найдено";
           }
         }
       }

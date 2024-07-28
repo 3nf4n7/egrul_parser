@@ -62,7 +62,10 @@ app.get("/api/egrul", async (req, res) => {
       res.send(persons);
     } else {
       const parsedPersons = await parseEgrulNalog(req.query.query);
-      if (!parsedPersons.lenght) return [];
+      if (!parsedPersons.length) {
+        res.send([]);
+        return;
+      }
 
       const newPersons = parsedPersons.map((person) => {
         const ogrnipMatch = person.description.match(/ОГРНИП:\s*(\d+)/i);
@@ -95,7 +98,7 @@ app.get("/api/egrul", async (req, res) => {
       await Person.insertMany(newPersons);
 
       if (newPersons && newPersons.length > 0) {
-        res.send(newPersons);
+        res.send(await Person.aggregate(pipeline));
       } else {
         res.sendStatus(404);
       }
@@ -109,7 +112,6 @@ app.get("/api/egrul", async (req, res) => {
 app.get("/api/egrul/download", async (req, res) => {
   if (req.query.id) {
     let person = await Person.findOne({ _id: req.query.id });
-    console.log(person);
     res.download(person.filePath, (err) => {
       if (err) {
         console.log(err);
