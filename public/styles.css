@@ -198,10 +198,11 @@ main {
 
 .filters {
     margin-top: 10px;
+    margin-left: 10px;
     display: flex;
     flex-direction: row;
-    gap: 15px;
     align-items: center;
+    gap: 15px;
 }
 
 .switch-container {
@@ -209,6 +210,5 @@ main {
     padding: 5px;
   display: flex;
   gap: 10px;
-  border: 1px solid black;
 }
 

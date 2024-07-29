@@ -24,6 +24,7 @@
           <label for="terminated">Действителен по сегодняшний день</label>
         </div> -->
         <div class="filters">
+          Действителен по сегодняшний день
           <div class="switch-container">
             <input type="radio" id="yes" name="switch" value="yes" />
             <label for="yes">Да</label>
@@ -40,7 +41,6 @@
             <input type="radio" id="no" name="switch" value="no" />
             <label for="no">Нет</label>
           </div>
-          Действителен по сегодняшний день
         </div>
       </div>
       <div class="pagination" style="display: none">
@@ -252,6 +252,13 @@
           curPageInput.value = currentPage;
           updatePeopleDisplay();
           updateButtons();
+        }
+      });
+
+      curPageInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          updatePeopleDisplay();
+          curPageInput.blur();
         }
       });
 
