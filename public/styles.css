@@ -195,3 +195,20 @@ main {
 .download-button:active {
     transform: scale(0.98);
 }
+
+.filters {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+    align-items: center;
+}
+
+.switch-container {
+    width: fit-content;
+    padding: 5px;
+  display: flex;
+  gap: 10px;
+  border: 1px solid black;
+}
+

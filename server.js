@@ -20,6 +20,7 @@ const personSchema = new mongoose.Schema({
   kpp: String,
   ogrnipStart: String,
   ogrnStart: String,
+  endDate: String,
   filePath: String,
   updateTimestamp: Number,
 });
@@ -35,6 +36,7 @@ app.get("/api/egrul", async (req, res) => {
     const query = req.query.query || "";
     const regex = new RegExp(query, "i");
     const page = parseInt(req.query.page) || 1;
+    const filter = req.query.filter || false;
     const limit = 20;
     const skip = (page - 1) * limit;
 
@@ -57,6 +59,8 @@ app.get("/api/egrul", async (req, res) => {
       {
         $match: {
           combinedFields: { $regex: regex },
+          ...(filter === "no" && { endDate: { $ne: null } }),
+          ...(filter === "yes" && { endDate: { $eq: null } }),
         },
       },
       {
@@ -68,14 +72,31 @@ app.get("/api/egrul", async (req, res) => {
     ];
 
     const persons = await Person.aggregate(pipeline);
-    const count = await Person.countDocuments({
+
+    const baseQueryCount = {
       $or: [
         { legal: { $regex: regex } },
         { ogrnip: { $regex: regex } },
         { ogrn: { $regex: regex } },
         { inn: { $regex: regex } },
       ],
-    });
+    };
+
+    let queryCount;
+
+    if (filter === "no") {
+      queryCount = {
+        $and: [{ endDate: { $ne: null } }, baseQueryCount],
+      };
+    } else if (filter === "yes") {
+      queryCount = {
+        $and: [{ endDate: { $eq: null } }, baseQueryCount],
+      };
+    } else {
+      queryCount = baseQueryCount;
+    }
+
+    const count = await Person.countDocuments(queryCount);
 
     if (persons && persons.length > 0) {
       res.send({ persons, count });

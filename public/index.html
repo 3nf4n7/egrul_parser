@@ -19,6 +19,29 @@
           <button id="clear-button">&times;</button>
           <button class="find-button">Найти</button>
         </div>
+        <!-- <div class="filters">
+          <input type="checkbox" id="terminated" />
+          <label for="terminated">Действителен по сегодняшний день</label>
+        </div> -->
+        <div class="filters">
+          <div class="switch-container">
+            <input type="radio" id="yes" name="switch" value="yes" />
+            <label for="yes">Да</label>
+
+            <input
+              type="radio"
+              id="neutral"
+              name="switch"
+              value="neutral"
+              checked
+            />
+            <label for="neutral">Неважно</label>
+
+            <input type="radio" id="no" name="switch" value="no" />
+            <label for="no">Нет</label>
+          </div>
+          Действителен по сегодняшний день
+        </div>
       </div>
       <div class="pagination" style="display: none">
         <button class="nav-btn" id="prev-btn">&lang;</button>
@@ -61,18 +84,42 @@
 
       let lastQuery = "";
       let lastQueryPage;
+      let lastQueryFilter;
       let peopleData = [];
+
+      function getSwitchValue() {
+        const radios = document.getElementsByName("switch");
+        let selectedValue;
+        for (const radio of radios) {
+          if (radio.checked) {
+            selectedValue = radio.value;
+            break;
+          }
+        }
+
+        return selectedValue;
+      }
 
       async function updatePeopleDisplay() {
         const query = searchInput.value;
+        let switchValue = getSwitchValue();
 
-        if (query && (query !== lastQuery || currentPage !== lastQueryPage)) {
-          if (query !== lastQuery) currentPage = 1;
+        if (
+          query &&
+          (query !== lastQuery ||
+            currentPage !== lastQueryPage ||
+            switchValue !== lastQueryFilter)
+        ) {
+          if (query !== lastQuery || switchValue !== lastQueryFilter)
+            currentPage = 1;
           modal.style.display = "block";
-          let res = await fetch(`api/egrul?query=${query}&page=${currentPage}`);
+          let res = await fetch(
+            `api/egrul?query=${query}&page=${currentPage}&filter=${switchValue}`
+          );
           peopleData = await res.json();
           lastQuery = query;
           lastQueryPage = currentPage;
+          lastQueryFilter = switchValue;
 
           while (resultsContainer.firstChild) {
             resultsContainer.removeChild(resultsContainer.firstChild);
@@ -125,6 +172,10 @@
                 info.push(`Дата присвоения ОГРН:&nbsp;${person.ogrnStart}`);
               if (person.inn) info.push(`ИНН:&nbsp;${person.inn}`);
               if (person.kpp) info.push(`КПП:&nbsp;${person.kpp}`);
+              if (person.endDate)
+                info.push(
+                  `Дата прекращения деятельности:&nbsp;${person.endDate}`
+                );
 
               resText.innerHTML = info.join(", ");
               resLine.appendChild(resText);
