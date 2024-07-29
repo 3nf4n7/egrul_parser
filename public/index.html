@@ -9,20 +9,24 @@
   <body>
     <main>
       <div class="search-wrap">
-        <label for="searchInput">Поисковой запрос:</label>
+        <label for="search-input">Поисковой запрос:</label>
         <div class="search-input-wrap">
           <input
-            id="searchInput"
+            id="search-input"
             type="text"
             placeholder="Поиск ЕГРЮЛ по юр. лицу, ФИО, ИНН"
           />
-          <button id="clearButton">&times;</button>
+          <button id="clear-button">&times;</button>
+          <button class="find-button">Найти</button>
         </div>
       </div>
-      <div class="pagination">
-        <button id="prevBtn">Previous</button>
-        <span id="pageInfo"></span>
-        <button id="nextBtn">Next</button>
+      <div class="pagination" style="display: none">
+        <button class="nav-btn" id="prev-btn">&lang;</button>
+        Страница
+        <input type="number" class="cur-page-input" />
+        из
+        <span id="page-info"></span>
+        <button class="nav-btn" id="next-btn">&rang;</button>
       </div>
       <div class="results">
         <div class="empty">Здесь будет результат поиска</div>
@@ -40,56 +44,73 @@
     </div>
     <script>
       let empty = document.querySelector(".empty");
-      let searchInput = document.querySelector("#searchInput");
+      let searchInput = document.querySelector("#search-input");
       const modal = document.getElementById("modal");
       const resultsContainer = document.querySelector(".results");
-      const prevBtn = document.getElementById("prevBtn");
-      const nextBtn = document.getElementById("nextBtn");
-      const pageInfo = document.getElementById("pageInfo");
+      const findButton = document.querySelector(".find-button");
+      const clearButton = document.getElementById("clear-button");
+      const pagination = document.querySelector(".pagination");
+      const prevBtn = document.getElementById("prev-btn");
+      const curPageInput = document.querySelector(".cur-page-input");
+      const nextBtn = document.getElementById("next-btn");
+      const pageInfo = document.getElementById("page-info");
 
-      let isEnterKeyPressed = false;
+      const itemsPerPage = 20;
+      let currentPage = 1;
+      let totalPages;
+
       let lastQuery = "";
-      let personsData = [];
+      let lastQueryPage;
+      let peopleData = [];
 
-      async function sendSearchQuery() {
+      async function updatePeopleDisplay() {
         const query = searchInput.value;
 
-        if (query && query !== lastQuery) {
-          console.log(query);
+        if (query && (query !== lastQuery || currentPage !== lastQueryPage)) {
+          if (query !== lastQuery) currentPage = 1;
           modal.style.display = "block";
-          let res = await fetch(`api/egrul?query=${query}`);
-          personsData = await res.json();
-          console.log(personsData);
+          let res = await fetch(`api/egrul?query=${query}&page=${currentPage}`);
+          peopleData = await res.json();
           lastQuery = query;
+          lastQueryPage = currentPage;
+
           while (resultsContainer.firstChild) {
             resultsContainer.removeChild(resultsContainer.firstChild);
           }
           setTimeout(() => (modal.style.display = "none"), 1000);
 
-          if (personsData.length) {
-            for (let i = 0; i < personsData.length; i++) {
-              let person = personsData[i];
-              // Создание элемента div с классом res-row
+          if (peopleData.persons.length) {
+            totalPages = Math.ceil(peopleData.count / itemsPerPage);
+            curPageInput.value = currentPage;
+            pageInfo.innerHTML = totalPages;
+            pagination.style.display = "block";
+            updateButtons();
+            const resH = document.createElement("h2");
+            resH.innerHTML = "Результат поиска:";
+            resultsContainer.appendChild(resH);
+            for (let i = 0; i < peopleData.persons.length; i++) {
+              let person = peopleData.persons[i];
+
               const resRow = document.createElement("div");
               resRow.className = "res-row";
 
-              // Создание и добавление номера строки
               const resRowNum = document.createElement("div");
               resRowNum.className = "res-rownum";
-              resRowNum.textContent = `${i + 1}.`;
+              resRowNum.textContent = `${
+                (currentPage - 1) * itemsPerPage + i + 1
+              }.`;
               resRow.appendChild(resRowNum);
 
-              // Создание и добавление заголовка
               const resCaption = document.createElement("div");
               resCaption.className = "res-caption";
               const link = document.createElement("a");
               link.href = `api/egrul/download?id=${person._id}`;
               link.title = "Получить выписку";
               link.innerHTML = person.legal;
+
               resCaption.appendChild(link);
               resRow.appendChild(resCaption);
 
-              // Создание и добавление строки с данными
               const resLine = document.createElement("div");
               resLine.className = "res-line";
 
@@ -118,7 +139,6 @@
               buttonLink.appendChild(button);
               resRow.appendChild(buttonLink);
 
-              // Добавление всего созданного элемента в контейнер
               resultsContainer.appendChild(resRow);
               empty.style.display = "none";
             }
@@ -128,36 +148,74 @@
 
             const pRes = document.createElement("p");
             pRes.innerHTML = "Ничего не найдено";
+
+            resRow.appendChild(pRes);
+
+            resultsContainer.appendChild(resRow);
           }
         }
       }
 
-      searchInput.addEventListener("blur", () => {
-        if (!isEnterKeyPressed) {
-          sendSearchQuery();
+      clearButton.addEventListener("click", () => {
+        searchInput.value = "";
+        clearButton.style.display = "none";
+      });
+
+      findButton.addEventListener("click", () => {
+        if (searchInput.value) updatePeopleDisplay();
+        setTimeout;
+      });
+
+      searchInput.addEventListener("input", () => {
+        if (searchInput.value) {
+          clearButton.style.display = "block";
+        } else {
+          clearButton.style.display = "none";
         }
-        isEnterKeyPressed = false;
       });
 
       searchInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
-          isEnterKeyPressed = true;
-          sendSearchQuery();
+          updatePeopleDisplay();
           searchInput.blur();
         }
+      });
 
-        clearButton.addEventListener("click", () => {
-          searchInput.value = "";
-          clearButton.style.display = "none";
-        });
+      function updateButtons() {
+        prevBtn.disabled = currentPage === 1;
+        nextBtn.disabled = currentPage === totalPages;
+      }
 
-        searchInput.addEventListener("input", () => {
-          if (searchInput.value) {
-            clearButton.style.display = "block";
-          } else {
-            clearButton.style.display = "none";
-          }
-        });
+      prevBtn.addEventListener("click", () => {
+        if (currentPage > 1) {
+          currentPage--;
+          curPageInput.value = currentPage;
+          updatePeopleDisplay();
+          updateButtons();
+        }
+      });
+
+      nextBtn.addEventListener("click", () => {
+        if (currentPage < totalPages) {
+          currentPage++;
+          curPageInput.value = currentPage;
+          updatePeopleDisplay();
+          updateButtons();
+        }
+      });
+
+      curPageInput.addEventListener("blur", (e) => {
+        currentPage = curPageInput.value;
+        if (e.target.value > totalPages) {
+          currentPage = totalPages;
+          e.target.value = totalPages;
+        }
+        if (e.target.value < 1) {
+          currentPage = 1;
+          e.target.value = 1;
+        }
+        updatePeopleDisplay();
+        updateButtons();
       });
     </script>
   </body>

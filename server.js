@@ -1,6 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const parseEgrulNalog = require("./parseEgrulNalog");
+const { parseEgrulNalog, egrulDownload } = require("./parseEgrulNalog");
 const fs = require("fs");
 const path = require("path");
 
@@ -21,6 +21,7 @@ const personSchema = new mongoose.Schema({
   ogrnipStart: String,
   ogrnStart: String,
   filePath: String,
+  updateTimestamp: Number,
 });
 
 const Person = mongoose.model("Person", personSchema);
@@ -31,7 +32,11 @@ app.listen(3000, () => {
 
 app.get("/api/egrul", async (req, res) => {
   try {
-    const regex = new RegExp(req.query.query, "i");
+    const query = req.query.query || "";
+    const regex = new RegExp(query, "i");
+    const page = parseInt(req.query.page) || 1;
+    const limit = 20;
+    const skip = (page - 1) * limit;
 
     const pipeline = [
       {
@@ -54,16 +59,30 @@ app.get("/api/egrul", async (req, res) => {
           combinedFields: { $regex: regex },
         },
       },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: limit,
+      },
     ];
 
     const persons = await Person.aggregate(pipeline);
+    const count = await Person.countDocuments({
+      $or: [
+        { legal: { $regex: regex } },
+        { ogrnip: { $regex: regex } },
+        { ogrn: { $regex: regex } },
+        { inn: { $regex: regex } },
+      ],
+    });
 
     if (persons && persons.length > 0) {
-      res.send(persons);
+      res.send({ persons, count });
     } else {
       const parsedPersons = await parseEgrulNalog(req.query.query);
       if (!parsedPersons.length) {
-        res.send([]);
+        res.send({ persons: [], count: 0 });
         return;
       }
 
@@ -92,13 +111,24 @@ app.get("/api/egrul", async (req, res) => {
           ogrnipStart: dateOgrnipMatch ? dateOgrnipMatch[1] : null,
           endDate: endDateMatch ? endDateMatch[1] : null,
           filePath: person.filePath ?? null,
+          updateTimestamp: Date.now(),
         };
       });
 
       await Person.insertMany(newPersons);
 
       if (newPersons && newPersons.length > 0) {
-        res.send(await Person.aggregate(pipeline));
+        res.send({
+          persons: await Person.aggregate(pipeline),
+          count: await Person.countDocuments({
+            $or: [
+              { legal: { $regex: regex } },
+              { ogrnip: { $regex: regex } },
+              { ogrn: { $regex: regex } },
+              { inn: { $regex: regex } },
+            ],
+          }),
+        });
       } else {
         res.sendStatus(404);
       }
@@ -111,13 +141,42 @@ app.get("/api/egrul", async (req, res) => {
 
 app.get("/api/egrul/download", async (req, res) => {
   if (req.query.id) {
-    let person = await Person.findOne({ _id: req.query.id });
-    res.download(person.filePath, (err) => {
-      if (err) {
-        console.log(err);
-        res.status(404).send("File not found");
+    try {
+      let person = await Person.findOne({ _id: req.query.id });
+      if (!person) {
+        return res.status(404).send("Person not found");
       }
-    });
+
+      let filePath = "";
+      const oneDayInMilliseconds = 24 * 60 * 60 * 1000;
+      const personFileNeedUpdate =
+        person.updateTimestamp <
+        new Date(Date.now() - oneDayInMilliseconds).getTime();
+      if (!person.filePath || personFileNeedUpdate) {
+        if (personFileNeedUpdate) {
+          fs.unlink(person.filePath, (err) => {
+            if (err) throw err;
+            console.log("Старый файл удален");
+          });
+        }
+        filePath = await egrulDownload(person.inn);
+        person.filePath = filePath;
+        person.updateTimestamp = Date.now();
+        await person.save();
+      }
+
+      res.download(person.filePath, (err) => {
+        if (err) {
+          console.log(err);
+          res.status(404).send("File not found");
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send("Server error");
+    }
+  } else {
+    res.status(400).send("ID parameter is missing");
   }
 });
 
