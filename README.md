@@ -17,21 +17,23 @@ docker-compose up --build
 
 ## Запросы:
 
-/api/egrul?query=[поисковой запрос]&page=[номер страницы (по умолчанию 1)]&filter=[значение поля даты прикращения деятельности] - возвращает список из ЕГРЮЛ, удовлетворяющий поисковому запросу.
+/api/egrul?query=[поисковой запрос]&page=[номер страницы (по умолчанию 1)]&filter=[значение поля даты прекращения деятельности] - возвращает список из ЕГРЮЛ, удовлетворяющий поисковому запросу.
 
 /api/egrul/download?id=[id записи для запрашиваемой выписки]
 
 ## Схема:
 
-mongoose.Schema({  
- legal: String,  
- ogrnip: String,  
- ogrn: String,  
- inn: String,  
- kpp: String,  
- ogrnipStart: String,  
- ogrnStart: String,  
- endDate: String,  
- filePath: String,  
- updateTimestamp: Number,  
-})
+```javascript
+mongoose.Schema({
+  legal: String,
+  ogrnip: String,
+  ogrn: String,
+  inn: String,
+  kpp: String,
+  ogrnipStart: String,
+  ogrnStart: String,
+  endDate: String,
+  filePath: String,
+  updateTimestamp: Number,
+});
+```
