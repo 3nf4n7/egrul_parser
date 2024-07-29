@@ -11,9 +11,8 @@ app.use(express.static("public"));
 app.use(express.json());
 
 const mongoURI = process.env.MONGODB_URI;
-console.log(mongoURI);
 
-mongoose.connect(mongoURI).then(() => console.log(mongoURI));
+mongoose.connect(mongoURI).then(() => console.log("БД работает:", mongoURI));
 
 const personSchema = new mongoose.Schema({
   legal: String,
