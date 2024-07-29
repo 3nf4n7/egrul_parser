@@ -10,9 +10,10 @@ const app = express();
 app.use(express.static("public"));
 app.use(express.json());
 
-const mongoURI = process.env.MONGODBURL;
+const mongoURI = process.env.MONGODB_URI;
+console.log(mongoURI);
 
-mongoose.connect(mongoURI);
+mongoose.connect(mongoURI).then(() => console.log(mongoURI));
 
 const personSchema = new mongoose.Schema({
   legal: String,
