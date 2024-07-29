@@ -3,12 +3,14 @@ const mongoose = require("mongoose");
 const { parseEgrulNalog, egrulDownload } = require("./parseEgrulNalog");
 const fs = require("fs");
 const path = require("path");
+const dotenv = require("dotenv");
+dotenv.config();
 
 const app = express();
 app.use(express.static("public"));
 app.use(express.json());
 
-const mongoURI = "mongodb://127.0.0.1:27017/egrul";
+const mongoURI = process.env.MONGODBURL;
 
 mongoose.connect(mongoURI);
 
@@ -27,7 +29,7 @@ const personSchema = new mongoose.Schema({
 
 const Person = mongoose.model("Person", personSchema);
 
-app.listen(3000, () => {
+app.listen(process.env.PORT, () => {
   console.log("Сервер запущен на порте 3000");
 });
 
