@@ -51,9 +51,8 @@
         <span id="page-info"></span>
         <button class="nav-btn" id="next-btn">&rang;</button>
       </div>
-      <div class="results">
-        <div class="empty">Здесь будет результат поиска</div>
-      </div>
+      <div class="empty">Здесь будет результат поиска</div>
+      <div class="results"></div>
     </main>
     <div id="modal" class="modal">
       <div class="modal-content">
@@ -81,6 +80,7 @@
       const itemsPerPage = 20;
       let currentPage = 1;
       let totalPages;
+      let emptyReqErr = false;
 
       let lastQuery = "";
       let lastQueryPage;
@@ -102,22 +102,38 @@
 
       async function updatePeopleDisplay() {
         const query = searchInput.value;
+        if (!query) {
+          searchInput.style = "border: 1px solid red";
+          while (resultsContainer.firstChild) {
+            resultsContainer.removeChild(resultsContainer.firstChild);
+          }
+          currentPage = 1;
+          emptyReqErr = true;
+          pagination.style.display = "none";
+          empty.style.display = "block";
+        } else {
+          searchInput.style = "border: none";
+        }
         let switchValue = getSwitchValue();
 
         if (
-          query &&
-          (query !== lastQuery ||
-            currentPage !== lastQueryPage ||
-            switchValue !== lastQueryFilter)
+          query ||
+          (!emptyReqErr &&
+            (query !== lastQuery ||
+              currentPage !== lastQueryPage ||
+              switchValue !== lastQueryFilter))
         ) {
+          emptyReqErr = false;
           if (query !== lastQuery || switchValue !== lastQueryFilter)
             currentPage = 1;
           modal.style.display = "block";
           let res = await fetch(
-            `api/egrul?query=${query}&page=${currentPage}&filter=${switchValue}`
+            `api/egrul?query=${
+              query ? query : lastQuery
+            }&page=${currentPage}&filter=${switchValue}`
           );
+          lastQuery = query ? query : lastQuery;
           peopleData = await res.json();
-          lastQuery = query;
           lastQueryPage = currentPage;
           lastQueryFilter = switchValue;
 
